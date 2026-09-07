@@ -1,0 +1,12 @@
+[package]
+name = "logslm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+candle-core = "0.9"
+candle-nn = "0.9"
+fastrand = "2"
+
+[profile.release]
+opt-level = 3
