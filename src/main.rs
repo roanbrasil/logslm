@@ -117,7 +117,7 @@ fn apache_anomaly(kind: &str, real_lines: &[&str]) -> String {
         "garbage" => "[Sun Dec 04 04:47:44 2005] [error] ####@@@!!!~~~%%%^^^&&&***(((|||}}}".to_string(),
         // syntactic: injection - a payload that never shows up in a normal log
         "injection" => format!(
-            "[Sun Dec 04 04:47:44 2005] [error] '; DROP TABLE users; -- /../../etc/passwd"
+            "[Sun Dec 04 04:47:44 2005] [error] 1' OR '1'='1 /../../private/config"
         ),
         // syntactic: a made-up level that does not exist in the Apache vocabulary
         "bad_level" => base.replacen("[notice]", "[CATASTROPHE]", 1).replacen("[error]", "[CATASTROPHE]", 1),

@@ -44,7 +44,7 @@ pub fn normal_line() -> String {
 pub fn anomaly(kind: &str) -> String {
     match kind {
         // syntactic: they violate the grammar (symbols/sequences never seen)
-        "garbage" => "svc=??? lvl=?? PATCH /../etc/passwd 999 -1ms".to_string(),
+        "garbage" => "svc=??? lvl=?? PATCH /../private/config 999 -1ms".to_string(),
         "weird_method" => format!(
             "svc={} lvl=INFO TRACE /admin 200 5ms",
             choice(SERVICES)

@@ -42,7 +42,7 @@ params=35233
 
 === perplexity ===
 normal: mean 4.55  std 1.32  threshold(mean+2sd) 7.18
-  garbage       pp  512.89  (112.8x)  detection 100%
+  garbage       pp  430.37  ( 94.6x)  detection 100%
   weird_method  pp   29.07  (  6.4x)  detection 100%
   huge_lat      pp    5.05  (  1.1x)  detection 0%
   bad_code      pp    4.61  (  1.0x)  detection 0%
@@ -57,7 +57,7 @@ params=35427
 === perplexity ===
 normal: mean 7.56  std 1.84  threshold(mean+2sd) 11.23
   garbage       pp   27.81  (  3.7x)  detection 100%
-  injection     pp   29.06  (  3.8x)  detection 100%
+  injection     pp   31.67  (  4.2x)  detection 100%
   bad_level     pp   38.82  (  5.1x)  detection 100%
   flood         pp    6.05  (  0.8x)  detection 0%
 ```
