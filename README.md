@@ -19,6 +19,53 @@ cargo run --release -- real 3000
 The first argument is the mode (`synth`|`real`), the second is the number of
 training steps. Run from the project root — the data path is relative.
 
+## Reproducibility
+
+Runs are bit-identical: same seed, same output, down to every loss and every
+perplexity. A single `SEED` in `src/main.rs` drives weight init, batch sampling,
+the synthetic lines and the anomalies.
+
+candle's CPU backend cannot be seeded — `Device::set_seed` bails on `Cpu` — so
+the weights are not left to its internal RNG: `init_deterministic` overwrites
+every variable with values drawn from our own seeded generator, visiting them in
+sorted-name order so the draw sequence is fixed. Determinism holds across thread
+counts too (verified with `RAYON_NUM_THREADS=1` against the default). Only the
+reported wall-clock time varies between runs.
+
+The reference output for the two commands above:
+
+```
+mode=synth  corpus=160230 chars  vocab=49  lines=4000
+  step     0  loss 3.9964
+  step  2499  loss 1.4649
+params=35233
+
+=== perplexity ===
+normal: mean 4.55  std 1.32  threshold(mean+2sd) 7.18
+  garbage       pp  512.89  (112.8x)  detection 100%
+  weird_method  pp   29.07  (  6.4x)  detection 100%
+  huge_lat      pp    5.05  (  1.1x)  detection 0%
+  bad_code      pp    4.61  (  1.0x)  detection 0%
+```
+
+```
+mode=real  corpus=152331 chars  vocab=51  lines=1800
+  step     0  loss 4.1293
+  step  2999  loss 1.9951
+params=35427
+
+=== perplexity ===
+normal: mean 7.56  std 1.84  threshold(mean+2sd) 11.23
+  garbage       pp   27.81  (  3.7x)  detection 100%
+  injection     pp   29.06  (  3.8x)  detection 100%
+  bad_level     pp   38.82  (  5.1x)  detection 100%
+  flood         pp    6.05  (  0.8x)  detection 0%
+```
+
+Training starts at a loss of about `ln(vocab)` (3.89 for 49 characters, 3.93 for
+51) — the loss of a model guessing uniformly, which is the check that the
+initialization is sane: the model really does start out knowing nothing.
+
 ## What it catches, what it misses
 
 Syntactic anomalies (garbage bytes, invalid method, SQL injection, nonexistent

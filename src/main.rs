@@ -26,11 +26,43 @@ fn sample_batch(
     Ok((x, y))
 }
 
-fn train(corpus_ids: &[u32], cfg: &Config, steps: usize) -> Result<(VarMap, GptLog)> {
+// Deterministic weight init. candle's CPU backend refuses to be seeded
+// (Device::set_seed bails on Cpu), so instead of relying on its internal RNG we
+// overwrite every freshly created variable with values drawn from our own
+// seeded generator. Variables are visited in sorted-name order so the RNG is
+// consumed in a fixed sequence: same seed => bit-identical run.
+fn init_deterministic(varmap: &VarMap, seed: u64) -> Result<()> {
+    fastrand::seed(seed);
+    let dev = Device::Cpu;
+    let data = varmap.data().lock().unwrap();
+    let mut names: Vec<&String> = data.keys().collect();
+    names.sort();
+    for name in names {
+        let var = &data[name];
+        let dims = var.dims().to_vec();
+        let n: usize = dims.iter().product();
+        let vals: Vec<f32> = if name.ends_with("bias") {
+            vec![0f32; n]
+        } else if name.contains("ln") && name.ends_with("weight") {
+            vec![1f32; n]
+        } else {
+            // uniform(-1/sqrt(fan_in), 1/sqrt(fan_in)), as candle's linear init
+            let b = 1.0 / (*dims.last().unwrap() as f64).sqrt();
+            (0..n)
+                .map(|_| ((fastrand::f64() * 2.0 - 1.0) * b) as f32)
+                .collect()
+        };
+        var.set(&Tensor::from_vec(vals, dims, &dev)?)?;
+    }
+    Ok(())
+}
+
+fn train(corpus_ids: &[u32], cfg: &Config, steps: usize, seed: u64) -> Result<(VarMap, GptLog)> {
     let dev = Device::Cpu;
     let varmap = VarMap::new();
     let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
     let model = GptLog::new(cfg, vb)?;
+    init_deterministic(&varmap, seed)?;
 
     let params = ParamsAdamW {
         lr: 3e-3,
@@ -102,8 +134,12 @@ fn std(v: &[f32], m: f32) -> f32 {
     (v.iter().map(|x| (x - m).powi(2)).sum::<f32>() / v.len() as f32).sqrt()
 }
 
+// One seed drives everything: weight init, batch sampling, synthetic lines and
+// the anomalies. Change it and you get a different, equally reproducible run.
+const SEED: u64 = 7;
+
 fn main() -> Result<()> {
-    fastrand::seed(7);
+    fastrand::seed(SEED);
     let args: Vec<String> = std::env::args().collect();
     let mode = args.get(1).map(|s| s.as_str()).unwrap_or("synth");
 
@@ -144,7 +180,7 @@ fn main() -> Result<()> {
         .and_then(|s| s.parse().ok())
         .unwrap_or(1500);
     let t0 = std::time::Instant::now();
-    let (varmap, model) = train(&ids, &cfg, steps)?;
+    let (varmap, model) = train(&ids, &cfg, steps, SEED)?;
     let nparams: usize = varmap
         .all_vars()
         .iter()
